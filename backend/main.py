@@ -14,18 +14,15 @@ app = FastAPI()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
-# 🔹 Define message schema
 class Message(BaseModel):
     role: Literal["system", "user", "assistant"]
     content: str
 
 
-# 🔹 Define request schema
 class ChatRequest(BaseModel):
     messages: List[Message]
 
 
-# 🔹 Streaming function
 def stream_chat_response(messages: List[Message]):
     try:
         yield "event: status\ndata: Analyzing...\n\n"
@@ -36,7 +33,7 @@ def stream_chat_response(messages: List[Message]):
 
         yield "event: status\ndata: Generating response...\n\n"
 
-        # 🔹 Convert Pydantic objects → dict (IMPORTANT)
+       
         messages_dict = [msg.dict() for msg in messages]
 
         stream = client.chat.completions.create(
@@ -62,7 +59,6 @@ def stream_chat_response(messages: List[Message]):
         yield f"event: error\ndata: {str(e)}\n\n"
 
 
-# 🔹 Endpoint with validation
 @app.post("/chat")
 async def chat(request: ChatRequest):
     return StreamingResponse(
