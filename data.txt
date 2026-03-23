@@ -1,0 +1,4 @@
+Pricing starts at $99 per month.
+We offer a free tier.
+Refunds are allowed within 30 days.
+You can install using Docker.
