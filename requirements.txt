@@ -3,7 +3,7 @@ uvicorn
 pydantic
 responses
 groq
-dotenv
+python-dotenv
 logging
 streamlit
 requests

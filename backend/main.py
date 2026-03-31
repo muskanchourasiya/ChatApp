@@ -9,6 +9,13 @@ from dotenv import load_dotenv
 import logging
 
 load_dotenv()
+metrics = {
+    "total_requests": 0,
+    "total_errors": 0,
+    "active_sessions": 0,
+    "last_response_time": 0
+}
+
 conversation_store = {}
 
 logging.basicConfig(
@@ -102,7 +109,6 @@ def retrieve(query, k=5):
     filtered = [doc for doc, score in results if score > 0]
 
     return filtered[:k]
-import re
 
 def detect_pii(text: str):
     patterns = [
@@ -246,18 +252,50 @@ def get_history(session_id: str):
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
+    start_time = time.time()
+
     session_id = request.session_id
 
     if session_id not in conversation_store:
         conversation_store[session_id] = []
+        metrics["active_sessions"] += 1
 
-    for msg in request.messages:
-        if msg.role != "system":
-            conversation_store[session_id].append(msg.dict())
+    metrics["total_requests"] += 1
 
-    logger.info(f"Session {session_id} has {len(conversation_store[session_id])} messages")
+    try:
+        for msg in request.messages:
+            if msg.role != "system":
+                conversation_store[session_id].append(msg.dict())
 
-    return StreamingResponse(
-        stream_chat_response(session_id),
-        media_type="text/event-stream"
-    )
+        response = StreamingResponse(
+            stream_chat_response(session_id),
+            media_type="text/event-stream"
+        )
+
+        metrics["last_response_time"] = round(time.time() - start_time, 2)
+
+        return response
+
+    except Exception:
+        metrics["total_errors"] += 1
+        raise
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "uptime": "running"
+    }
+
+@app.get("/metrics")
+def get_metrics():
+    return metrics
+
+@app.get("/logs")
+def get_logs():
+    try:
+        with open("app.log", "r") as f:
+            lines = f.readlines()[-20:]  
+        return {"logs": lines}
+    except:
+        return {"logs": []}
