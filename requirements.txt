@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+responses
+groq
+dotenv
+logging
+streamlit
+requests
+uuid
