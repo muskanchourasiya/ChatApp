@@ -1,22 +1,29 @@
 import streamlit as st
 import requests
+import uuid
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
 st.title("Chat App")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "system", "content": "You are a helpful AI assistant."}
-    ]
+if "chat_history" not in st.session_state:
+    response = requests.get(
+        f"http://127.0.0.1:8000/history/{st.session_state.session_id}"
+    )
+    st.session_state.chat_history = response.json()
 
-for msg in st.session_state.messages:
-    if msg["role"] != "system":
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+for msg in st.session_state.chat_history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
 user_input = st.chat_input("Ask something...")
 
 if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.chat_history.append({
+        "role": "user",
+        "content": user_input
+    })
 
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -26,11 +33,16 @@ if user_input:
         status_placeholder = st.empty()
 
         full_response = ""
-        event_type = None 
+        event_type = None
 
         response = requests.post(
             "http://127.0.0.1:8000/chat",
-            json={"messages": st.session_state.messages},
+            json={
+                "session_id": st.session_state.session_id,
+                "messages": [
+                    {"role": "user", "content": user_input}
+                ]
+            },
             stream=True
         )
 
@@ -61,9 +73,10 @@ if user_input:
                             st.error(data)
                             break
 
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": full_response
+            })
+
         except requests.exceptions.ChunkedEncodingError:
             st.warning("Connection interrupted. Partial response shown.")
-
-        st.session_state.messages.append(
-            {"role": "assistant", "content": full_response}
-        )
